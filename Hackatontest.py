@@ -164,10 +164,6 @@ df[['lat', 'lon']] = df['location_long'].apply(parse_location).apply(pd.Series)
 # === 5. PAGINA: DATAOVERZICHT ===
 if keuze == "Dataoverzicht":
     st.header("Algemene informatie en data")
-    st.markdown(f"Aantal rijen: **{len(df)}** | Aantal kolommen: **{df.shape[1]}**")
-    st.markdown("**Kolommen:**")
-    st.json(df.columns.to_list())
-
     st.subheader("Dataoverzicht (eerste 100 rijen)")
     st.dataframe(df.head(100))
 
