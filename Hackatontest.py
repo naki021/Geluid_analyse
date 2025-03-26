@@ -100,7 +100,7 @@ if keuze == "Dataoverzicht":
 elif keuze == "Heatmap geluid (per uur)":
     st.header("🔥 Geluidsheatmap per tijdstip")
 
-    # Sensorlocaties hardcoded fallback
+    # Sensorlocaties: precompute aparte dicts voor latitude en longitude
     sensor_coords = {
         'Aa': [52.263, 4.750],
         'Bl': [52.271, 4.785],
@@ -111,17 +111,22 @@ elif keuze == "Heatmap geluid (per uur)":
         'Ku': [52.275, 4.760],
         'Co': [52.265, 4.730],
     }
+    sensor_lat = {k: v[0] for k, v in sensor_coords.items()}
+    sensor_lon = {k: v[1] for k, v in sensor_coords.items()}
 
-    df['lat'] = df['location_short'].map(lambda x: sensor_coords.get(x, [None, None])[0])
-    df['lon'] = df['location_short'].map(lambda x: sensor_coords.get(x, [None, None])[1])
+    df['lat'] = df['location_short'].map(sensor_lat)
+    df['lon'] = df['location_short'].map(sensor_lon)
     df['hour'] = df['time'].dt.hour
 
     geselecteerd_uur = st.slider("🕒 Kies een uur", 0, 23, 12)
-    filtered = df[(df['hour'] == geselecteerd_uur)].dropna(subset=['lat', 'lon', 'SEL_dB'])
+    filtered = df[df['hour'] == geselecteerd_uur].dropna(subset=['lat', 'lon', 'SEL_dB'])
 
-    # 🧐 Stat info
-    min_val = round(filtered['SEL_dB'].min(), 1) if not filtered.empty else "-"
-    max_val = round(filtered['SEL_dB'].max(), 1) if not filtered.empty else "-"
+    # Statistieken
+    if not filtered.empty:
+        min_val = round(filtered['SEL_dB'].min(), 1)
+        max_val = round(filtered['SEL_dB'].max(), 1)
+    else:
+        min_val = max_val = "-"
     st.markdown(f"""
     ### 🔎 Geluidsmetingen om {geselecteerd_uur}:00 uur  
     • Aantal meetpunten: **{len(filtered)}**  
@@ -129,10 +134,7 @@ elif keuze == "Heatmap geluid (per uur)":
     """)
 
     # Automatische centrering
-    if not filtered.empty:
-        center = [filtered['lat'].mean(), filtered['lon'].mean()]
-    else:
-        center = [52.3, 4.75]
+    center = [filtered['lat'].mean(), filtered['lon'].mean()] if not filtered.empty else [52.3, 4.75]
 
     import colorsys
     def dB_naar_kleur(sel_db, min_dB=30, max_dB=90):
@@ -143,18 +145,19 @@ elif keuze == "Heatmap geluid (per uur)":
 
     m = folium.Map(location=center, zoom_start=12)
 
-    for _, row in filtered.iterrows():
-        kleur = dB_naar_kleur(row["SEL_dB"], min_dB=30, max_dB=90)
-        radius = max(5, row["SEL_dB"] / 3)
+    # Gebruik itertuples voor een snellere iteratie
+    for row in filtered.itertuples(index=False):
+        kleur = dB_naar_kleur(row.SEL_dB, min_dB=30, max_dB=90)
+        radius = max(5, row.SEL_dB / 3)
         popup_html = f"""
-        📍 <b>{row['location_short']}</b><br>
-        🕒 {row['time'].strftime('%H:%M')}<br>
-        🖊 <b>{round(row['SEL_dB'],1)} dB</b>
+        📍 <b>{row.location_short}</b><br>
+        🕒 {row.time.strftime('%H:%M')}<br>
+        🖊 <b>{round(row.SEL_dB,1)} dB</b>
         """
-        tooltip_text = f"{row['location_short']} – {round(row['SEL_dB'], 1)} dB"
+        tooltip_text = f"{row.location_short} – {round(row.SEL_dB, 1)} dB"
 
         folium.CircleMarker(
-            location=[row["lat"], row["lon"]],
+            location=[row.lat, row.lon],
             radius=radius,
             color=kleur,
             fill=True,
@@ -164,63 +167,55 @@ elif keuze == "Heatmap geluid (per uur)":
             tooltip=folium.Tooltip(tooltip_text, sticky=True)
         ).add_to(m)
 
-# === Vluchtdata toevoegen ===
-    # Cache als globale variabele (eenmalig inlezen)
-    if 'cached_flight_df' not in globals():
-        print("CSV inlezen en verwerken...")
+    # Vluchtdata laden met caching
+    @st.cache_data
+    def load_flight_data():
         flight_df = pd.read_csv("flights_today_master1.zip", compression='zip')
         flight_df['ParsedTime'] = pd.to_datetime(flight_df['Time'], format='%a %I:%M:%S %p', errors='coerce')
         flight_df['hour'] = flight_df['ParsedTime'].dt.hour
-        flight_df = flight_df.dropna(subset=['Latitude', 'Longitude', 'hour'])
-    
-        # Cache het resultaat
-        cached_flight_df = flight_df
-    else:
-        flight_df = cached_flight_df
+        return flight_df.dropna(subset=['Latitude', 'Longitude', 'hour'])
 
-    # Groeperen
-    grouped_flights = flight_df.groupby(['FlightNumber', 'hour'])
+    flight_df = load_flight_data()
 
-    for (vlucht, uur), groep in grouped_flights:
-        if uur != geselecteerd_uur:
-            continue
-        coords = groep[['Latitude', 'Longitude']].values.tolist()
+    # Filter vluchtdata op het geselecteerde uur en groepeer per vlucht
+    flight_hour_df = flight_df[flight_df['hour'] == geselecteerd_uur]
+    for flight, group in flight_hour_df.groupby('FlightNumber'):
+        coords = group[['Latitude', 'Longitude']].values.tolist()
         if len(coords) >= 2:
             folium.PolyLine(
                 coords,
                 color="blue",
                 weight=2,
                 opacity=0.6,
-                tooltip=f"Vlucht {vlucht}"
+                tooltip=f"Vlucht {flight}"
             ).add_to(m)
 
-
-        # 📘 Legenda: linksonder + nettere titel
-        legend_html = """
-        {% macro html() %}
-        <div style='
-            position: fixed; 
-            bottom: 30px; left: 30px; width: 220px;
-            background-color: white;
-            padding: 10px;
-            border: 2px solid gray;
-            border-radius: 10px;
-            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
-            font-size: 14px;
-            z-index: 9999;
-        '>
-            <b>🗀 Legenda</b><br>
-            <i style="color:green;">●</i> Stil geluid<br>
-            <i style="color:orange;">●</i> Gemiddeld geluid<br>
-            <i style="color:red;">●</i> Hoog geluid<br>
-            <i style="color:blue;">━</i> Vliegtuigroute
-        </div>
-        {% endmacro %}
-        """
-        from branca.element import Template, MacroElement
-        legenda = MacroElement()
-        legenda._template = Template(legend_html)
-        m.get_root().add_child(legenda)
+    # Voeg de legenda maar één keer toe
+    legend_html = """
+    {% macro html() %}
+    <div style='
+        position: fixed; 
+        bottom: 30px; left: 30px; width: 220px;
+        background-color: white;
+        padding: 10px;
+        border: 2px solid gray;
+        border-radius: 10px;
+        box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        font-size: 14px;
+        z-index: 9999;
+    '>
+        <b>🗀 Legenda</b><br>
+        <i style="color:green;">●</i> Stil geluid<br>
+        <i style="color:orange;">●</i> Gemiddeld geluid<br>
+        <i style="color:red;">●</i> Hoog geluid<br>
+        <i style="color:blue;">━</i> Vliegtuigroute
+    </div>
+    {% endmacro %}
+    """
+    from branca.element import Template, MacroElement
+    legenda = MacroElement()
+    legenda._template = Template(legend_html)
+    m.get_root().add_child(legenda)
 
     st_folium(m, width=750, height=500)
 
