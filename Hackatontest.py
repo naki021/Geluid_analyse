@@ -46,11 +46,11 @@ keuze = st.sidebar.selectbox(
         "Heatmap geluid (per uur)",
         "Geluidsvergelijking per vliegtuigtype",
         "Hoogte vs geluid (regressie)",
-        "Bouwjaar vs geluid",
         "Grootteklasse vs geluid",
         "Stijgend vs dalend",
         "Daggemiddelde geluid",
-        "Windrichting vs geluid"  # 👈 toegevoegd
+        "Windrichting vs geluid",
+        "Geluid vs Gewicht per vliegtuigtype"  # 👈 toegevoegd
     ]
 )
 
@@ -199,7 +199,7 @@ elif keuze == "Geluidsvergelijking per vliegtuigtype":
 
     data_clean = df.dropna(subset=["icao_type", "SEL_dB"])
 
-    # Capaciteitstabel
+    # Capaciteit + grootteklasse
     capaciteit_data = {
         "A320": {"passagiers": 180, "vracht_ton": 2.5},
         "A319": {"passagiers": 140, "vracht_ton": 2.0},
@@ -217,8 +217,9 @@ elif keuze == "Geluidsvergelijking per vliegtuigtype":
 
     grootteklasse = {
         "CRJ2": "Klein", "E190": "Klein",
-        "A319": "Middelgroot", "A320": "Middelgroot", "A321": "Middelgroot", "B737": "Middelgroot", "B738": "Middelgroot",
-        "A332": "Groot", "A333": "Groot", "B744": "Groot", "B77W": "Groot"
+        "A319": "Middelgroot", "A320": "Middelgroot", "A321": "Middelgroot",
+        "B737": "Middelgroot", "B738": "Middelgroot",
+        "A332": "Groot", "A333": "Groot", "B744": "Groot", "B77W": "Groot", "B77F": "Groot"
     }
 
     capaciteit_df = pd.DataFrame(capaciteit_data).T.reset_index()
@@ -232,123 +233,36 @@ elif keuze == "Geluidsvergelijking per vliegtuigtype":
     resultaat["geluid_per_passagier"] = resultaat["gemiddeld_SEL_dB"] / resultaat["passagiers"]
     resultaat["geluid_per_ton_vracht"] = resultaat["gemiddeld_SEL_dB"] / resultaat["vracht_ton"]
 
-    optie = st.radio("Kies wat je wilt vergelijken:", ["Per passagier", "Per ton vracht"])
-    if optie == "Per passagier":
+    # Filter out infs
+    resultaat = resultaat.replace([float("inf"), -float("inf")], np.nan)
+
+    # Selectie
+    keuze_metric = st.radio("Kies wat je wilt vergelijken:", ["Per passagier", "Per ton vracht"])
+    if keuze_metric == "Per passagier":
         kolom = "geluid_per_passagier"
         titel = "Geluidsbelasting per passagier"
     else:
         kolom = "geluid_per_ton_vracht"
         titel = "Geluidsbelasting per ton vracht"
 
-    resultaat_plot = resultaat.replace([float('inf'), -float('inf')], np.nan).dropna(subset=[kolom])
-    resultaat_plot = resultaat_plot.sort_values(by=kolom).reset_index(drop=True)
+    resultaat_plot = resultaat.dropna(subset=[kolom]).sort_values(by=kolom).reset_index(drop=True)
 
-    # === Kleuren per grootteklasse: helder & goed onderscheidend
-    kleurmap = {
-        "Klein": "#FFD700",         # geel
-        "Middelgroot": "#FF7F0E",   # oranje
-        "Groot": "#D62728"          # rood
-    }
-    kleuren = [
-        kleurmap.get(gk, "#D5DBDB")
-        for gk in resultaat_plot["grootteklasse"]
-    ]
-
-    # === Plot
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    sns.set(style="whitegrid")
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    barplot = sns.barplot(
-        data=resultaat_plot,
-        x=kolom,
-        y="icao_type",
-        ax=ax,
-        ci=None,
-        palette=kleuren
-    )
-
-    gem = resultaat_plot[kolom].mean()
-    ax.axvline(gem, color="grey", linestyle="--")
-    ax.text(gem + 0.01, len(resultaat_plot)-1, "Gemiddelde", color="grey")
-
-    # Waarde op de balken
-    for i, (value, label) in enumerate(zip(resultaat_plot[kolom], resultaat_plot["icao_type"])):
-        ax.text(value + 0.02, i, f"{value:.2f}", va="center", fontsize=9)
-
-    ax.set_xlabel("Gemiddelde geluidsbelasting (dB)", fontsize=11)
-    ax.set_ylabel("Vliegtuigtype", fontsize=11)
-    ax.set_title(titel, fontsize=14, weight="bold")
-    plt.tight_layout()
-
-    st.pyplot(fig)
-
-        # === Tabel met gegevens
-    st.markdown("**Onderliggende gegevens**")
-    st.dataframe(
-            resultaat_plot[
-                [
-                    "icao_type",
-                    "grootteklasse",
-                    "gemiddeld_SEL_dB",
-                    "passagiers",
-                    "vracht_ton",
-                    "geluid_per_passagier",
-                    "geluid_per_ton_vracht"
-                ]
-            ]
-        )
-
-    # === Legenda onder de plot
-    st.markdown("""
-    🗺️ **Legenda grootteklasse**  
-    - 🟡 Klein toestel  
-    - 🟠 Middelgroot toestel  
-    - 🔴 Groot toestel  
-    """)
-
-    # === Extra plot: vrachttoestellen
-    st.subheader("📦 Geluidsbelasting van vrachttoestellen")
-
-    data_vracht = resultaat_plot[resultaat_plot["passagiers"] == 0].dropna(subset=["geluid_per_ton_vracht"])
-
-    if not data_vracht.empty:
-        fig2, ax2 = plt.subplots(figsize=(8, 4))
-        sns.barplot(
-            data=data_vracht,
-            x="geluid_per_ton_vracht",
-            y="icao_type",
-            color="#7f7f7f",
-            ax=ax2
-        )
-        for i, (val, name) in enumerate(zip(data_vracht["geluid_per_ton_vracht"], data_vracht["icao_type"])):
-            ax2.text(val + 0.02, i, f"{val:.2f}", va="center", fontsize=9)
-
-        ax2.set_xlabel("Geluidsbelasting per ton vracht (dB)")
-        ax2.set_ylabel("Vliegtuigtype")
-        ax2.set_title("Vrachttoestellen: geluidsbelasting per ton", fontsize=13)
-        plt.tight_layout()
-        st.pyplot(fig2)
-    else:
-        st.info("Geen vrachttoestellen in deze selectie.")
-
-    # === Interactieve versie met Plotly
+    # Plotly kleuren
     import plotly.express as px
 
-    st.subheader("🎯 Interactieve vergelijking (hover voor details)")
+    kleurmap_plotly = {
+        "Klein": "#FFD700",
+        "Middelgroot": "#FF7F0E",
+        "Groot": "#D62728"
+    }
 
-    plotly_fig = px.bar(
+    fig = px.bar(
         resultaat_plot,
         x=kolom,
         y="icao_type",
         orientation="h",
         color="grootteklasse",
-        color_discrete_map={
-            "Klein": "#FFD700",
-            "Middelgroot": "#FF7F0E",
-            "Groot": "#D62728"
-        },
+        color_discrete_map=kleurmap_plotly,
         labels={
             kolom: "Gemiddelde geluidsbelasting (dB)",
             "icao_type": "Vliegtuigtype",
@@ -356,9 +270,12 @@ elif keuze == "Geluidsvergelijking per vliegtuigtype":
         },
         hover_data=["gemiddeld_SEL_dB", "passagiers", "vracht_ton"]
     )
-    plotly_fig.update_layout(height=500, title=titel)
-    st.plotly_chart(plotly_fig, use_container_width=True)
+    fig.update_layout(
+        title=f"🎯 Interactieve vergelijking ({kolom})",
+        height=500
+    )
 
+    st.plotly_chart(fig, use_container_width=True)
 
 # === 8. PAGINA: HOOGTE VS GELUID (REGRESSIE) ===
 elif keuze == "Hoogte vs geluid (regressie)":
@@ -655,7 +572,7 @@ elif keuze == "Windrichting vs geluid":
         line=dict(color="mediumturquoise", width=3),
         marker=dict(color="teal", size=7)
     )
-    
+
     fig_polar.update_layout(
     polar=dict(
         radialaxis=dict(
@@ -673,3 +590,7 @@ elif keuze == "Windrichting vs geluid":
 
 
     st.plotly_chart(fig_polar, use_container_width=True)
+
+####
+elif keuze == "Geluid vs Gewicht per vliegtuigtype":
+    st.header("⚖️ Geluid vs Gewicht per vliegtuigtype")
