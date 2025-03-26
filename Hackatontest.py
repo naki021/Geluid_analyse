@@ -47,10 +47,8 @@ keuze = st.sidebar.selectbox(
         "Geluidsvergelijking per vliegtuigtype",
         "Hoogte vs geluid (regressie)",
         "Grootteklasse vs geluid",
-        "Stijgend vs dalend",
         "Daggemiddelde geluid",
-        "Windrichting vs geluid",
-        "Geluid vs Gewicht per vliegtuigtype"  # 👈 toegevoegd
+        "Windrichting vs geluid"
     ]
 )
 
@@ -454,72 +452,6 @@ elif keuze == "Grootteklasse vs geluid":
     - 💡 Dit bevestigt dat **zwaardere vliegtuigen vaker zorgen voor meer geluidsoverlast**
     """)
 
-
-# === 11. PAGINA: STIJGEND VS DALEND ===
-elif keuze == "Stijgend vs dalend":
-    st.header("🛫✈️ Stijgen vs. Landen: geluidsverdeling per richting")
-
-    def bepaal_richting(altitude, distance):
-        if pd.isna(altitude) or pd.isna(distance):
-            return "Onbekend"
-        if altitude > 1000 and distance < 20:
-            return "Stijgend"
-        elif altitude < 800 and distance > 20:
-            return "Dalend"
-        else:
-            return "Onbekend"
-
-    # Voeg toe aan df als nog niet bestaat
-    if "vluchtrichting" not in df.columns:
-        df["vluchtrichting"] = df.apply(
-            lambda row: bepaal_richting(row["altitude"], row["distance"]), axis=1
-        )
-
-    df_richting = df[df["vluchtrichting"].isin(["Stijgend", "Dalend"])].dropna(subset=["SEL_dB"])
-    df_stijgend = df_richting[df_richting["vluchtrichting"] == "Stijgend"]
-    df_dalend = df_richting[df_richting["vluchtrichting"] == "Dalend"]
-
-    aantal_stijgend = len(df_stijgend)
-    aantal_dalend = len(df_dalend)
-
-    st.markdown(f"""
-    📊 **Aantal herkende vluchten**
-    - 🛫 Stijgend: **{aantal_stijgend}**
-    - 🛬 Dalend: **{aantal_dalend}**
-    """)
-
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-
-    # Stijgend
-    if aantal_stijgend > 0:
-        sns.histplot(df_stijgend["SEL_dB"], bins=20, kde=True, ax=axes[0])
-        axes[0].set_title("🛫 Stijgend", fontsize=13)
-    else:
-        axes[0].text(0.5, 0.5, "Geen data", ha="center", va="center", fontsize=12)
-        axes[0].set_title("🛫 Stijgend (geen data)", fontsize=13)
-    axes[0].set_xlabel("SEL_dB")
-    axes[0].set_ylabel("Aantal metingen")
-
-    # Dalend
-    if aantal_dalend > 0:
-        sns.histplot(df_dalend["SEL_dB"], bins=20, kde=True, ax=axes[1])
-        axes[1].set_title("🛬 Dalend", fontsize=13)
-    else:
-        axes[1].text(0.5, 0.5, "Geen data", ha="center", va="center", fontsize=12)
-        axes[1].set_title("🛬 Dalend (geen data)", fontsize=13)
-    axes[1].set_xlabel("SEL_dB")
-
-    fig.suptitle("🔊 Geluidsverdeling bij stijgende en dalende vluchten", fontsize=15)
-    st.pyplot(fig)
-
-    st.markdown("""
-    - Links: **Stijgende vluchten**  
-    - Rechts: **Dalende vluchten**  
-
-    💡 Meestal geeft opstijgen (stijgend) meer geluidsoverlast.
-    """)
-
-
 # === NIEUWE PAGINA: DAGGEMIDDELDE GELUID (INTERACTIEF MET PLOTLY) ===
 elif keuze == "Daggemiddelde geluid":
     st.header("📅 Gemiddeld geluidsniveau per dag (interactief)")
@@ -617,7 +549,3 @@ elif keuze == "Windrichting vs geluid":
 
 
     st.plotly_chart(fig_polar, use_container_width=True)
-
-####
-elif keuze == "Geluid vs Gewicht per vliegtuigtype":
-    st.header("⚖️ Geluid vs Gewicht per vliegtuigtype")
