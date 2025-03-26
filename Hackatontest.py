@@ -119,7 +119,7 @@ elif keuze == "Heatmap geluid (per uur)":
     geselecteerd_uur = st.slider("🕒 Kies een uur", 0, 23, 12)
     filtered = df[(df['hour'] == geselecteerd_uur)].dropna(subset=['lat', 'lon', 'SEL_dB'])
 
-    # 🧠 Stat info
+    # 🧐 Stat info
     min_val = round(filtered['SEL_dB'].min(), 1) if not filtered.empty else "-"
     max_val = round(filtered['SEL_dB'].max(), 1) if not filtered.empty else "-"
     st.markdown(f"""
@@ -137,7 +137,7 @@ elif keuze == "Heatmap geluid (per uur)":
     import colorsys
     def dB_naar_kleur(sel_db, min_dB=30, max_dB=90):
         norm = min(max((sel_db - min_dB) / (max_dB - min_dB), 0), 1)
-        hue = (1 - norm) * 0.4  # groen (0.4) tot rood (0)
+        hue = (1 - norm) * 0.4
         r, g, b = [int(x * 255) for x in colorsys.hsv_to_rgb(hue, 1, 1)]
         return f'rgb({r},{g},{b})'
 
@@ -149,7 +149,7 @@ elif keuze == "Heatmap geluid (per uur)":
         popup_html = f"""
         📍 <b>{row['location_short']}</b><br>
         🕒 {row['time'].strftime('%H:%M')}<br>
-        🔊 <b>{round(row['SEL_dB'],1)} dB</b>
+        🖊 <b>{round(row['SEL_dB'],1)} dB</b>
         """
         tooltip_text = f"{row['location_short']} – {round(row['SEL_dB'], 1)} dB"
 
@@ -163,6 +163,27 @@ elif keuze == "Heatmap geluid (per uur)":
             popup=folium.Popup(popup_html, max_width=250),
             tooltip=folium.Tooltip(tooltip_text, sticky=True)
         ).add_to(m)
+
+    # === Vluchtdata toevoegen ===
+    flight_df = pd.read_csv("flights_today_master1.zip", compression='zip')
+    flight_df['ParsedTime'] = pd.to_datetime(flight_df['Time'], format='%a %I:%M:%S %p', errors='coerce')
+    flight_df['hour'] = flight_df['ParsedTime'].dt.hour
+
+    flight_df = flight_df.dropna(subset=['Latitude', 'Longitude', 'hour'])
+    grouped_flights = flight_df.groupby(['FlightNumber', 'hour'])
+
+    for (vlucht, uur), groep in grouped_flights:
+        if uur != geselecteerd_uur:
+            continue
+        coords = groep[['Latitude', 'Longitude']].values.tolist()
+        if len(coords) >= 2:
+            folium.PolyLine(
+                coords,
+                color="blue",
+                weight=2,
+                opacity=0.6,
+                tooltip=f"Vlucht {vlucht}"
+            ).add_to(m)
 
     # 📘 Legenda: linksonder + nettere titel
     legend_html = """
@@ -178,10 +199,11 @@ elif keuze == "Heatmap geluid (per uur)":
         font-size: 14px;
         z-index: 9999;
     '>
-        <b>🗺️ Legenda</b><br>
+        <b>🗀 Legenda</b><br>
         <i style="color:green;">●</i> Stil geluid<br>
         <i style="color:orange;">●</i> Gemiddeld geluid<br>
-        <i style="color:red;">●</i> Hoog geluid
+        <i style="color:red;">●</i> Hoog geluid<br>
+        <i style="color:blue;">━</i> Vliegtuigroute
     </div>
     {% endmacro %}
     """
@@ -189,7 +211,7 @@ elif keuze == "Heatmap geluid (per uur)":
     legenda = MacroElement()
     legenda._template = Template(legend_html)
     m.get_root().add_child(legenda)
-    
+
     st_folium(m, width=750, height=500)
 
 
