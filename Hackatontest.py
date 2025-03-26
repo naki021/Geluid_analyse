@@ -165,62 +165,62 @@ elif keuze == "Heatmap geluid (per uur)":
         ).add_to(m)
 
 # === Vluchtdata toevoegen ===
-# Cache als globale variabele (eenmalig inlezen)
-if 'cached_flight_df' not in globals():
-    print("CSV inlezen en verwerken...")
-    flight_df = pd.read_csv("flights_today_master1.zip", compression='zip')
-    flight_df['ParsedTime'] = pd.to_datetime(flight_df['Time'], format='%a %I:%M:%S %p', errors='coerce')
-    flight_df['hour'] = flight_df['ParsedTime'].dt.hour
-    flight_df = flight_df.dropna(subset=['Latitude', 'Longitude', 'hour'])
+    # Cache als globale variabele (eenmalig inlezen)
+    if 'cached_flight_df' not in globals():
+        print("CSV inlezen en verwerken...")
+        flight_df = pd.read_csv("flights_today_master1.zip", compression='zip')
+        flight_df['ParsedTime'] = pd.to_datetime(flight_df['Time'], format='%a %I:%M:%S %p', errors='coerce')
+        flight_df['hour'] = flight_df['ParsedTime'].dt.hour
+        flight_df = flight_df.dropna(subset=['Latitude', 'Longitude', 'hour'])
     
-    # Cache het resultaat
-    cached_flight_df = flight_df
-else:
-    flight_df = cached_flight_df
+        # Cache het resultaat
+        cached_flight_df = flight_df
+    else:
+        flight_df = cached_flight_df
 
-# Groeperen
-grouped_flights = flight_df.groupby(['FlightNumber', 'hour'])
+    # Groeperen
+    grouped_flights = flight_df.groupby(['FlightNumber', 'hour'])
 
-for (vlucht, uur), groep in grouped_flights:
-    if uur != geselecteerd_uur:
-        continue
-    coords = groep[['Latitude', 'Longitude']].values.tolist()
-    if len(coords) >= 2:
-        folium.PolyLine(
-            coords,
-            color="blue",
-            weight=2,
-            opacity=0.6,
-            tooltip=f"Vlucht {vlucht}"
-        ).add_to(m)
+    for (vlucht, uur), groep in grouped_flights:
+        if uur != geselecteerd_uur:
+            continue
+        coords = groep[['Latitude', 'Longitude']].values.tolist()
+        if len(coords) >= 2:
+            folium.PolyLine(
+                coords,
+                color="blue",
+                weight=2,
+                opacity=0.6,
+                tooltip=f"Vlucht {vlucht}"
+            ).add_to(m)
 
 
-    # 📘 Legenda: linksonder + nettere titel
-    legend_html = """
-    {% macro html() %}
-    <div style='
-        position: fixed; 
-        bottom: 30px; left: 30px; width: 220px;
-        background-color: white;
-        padding: 10px;
-        border: 2px solid gray;
-        border-radius: 10px;
-        box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
-        font-size: 14px;
-        z-index: 9999;
-    '>
-        <b>🗀 Legenda</b><br>
-        <i style="color:green;">●</i> Stil geluid<br>
-        <i style="color:orange;">●</i> Gemiddeld geluid<br>
-        <i style="color:red;">●</i> Hoog geluid<br>
-        <i style="color:blue;">━</i> Vliegtuigroute
-    </div>
-    {% endmacro %}
-    """
-    from branca.element import Template, MacroElement
-    legenda = MacroElement()
-    legenda._template = Template(legend_html)
-    m.get_root().add_child(legenda)
+        # 📘 Legenda: linksonder + nettere titel
+        legend_html = """
+        {% macro html() %}
+        <div style='
+            position: fixed; 
+            bottom: 30px; left: 30px; width: 220px;
+            background-color: white;
+            padding: 10px;
+            border: 2px solid gray;
+            border-radius: 10px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+            font-size: 14px;
+            z-index: 9999;
+        '>
+            <b>🗀 Legenda</b><br>
+            <i style="color:green;">●</i> Stil geluid<br>
+            <i style="color:orange;">●</i> Gemiddeld geluid<br>
+            <i style="color:red;">●</i> Hoog geluid<br>
+            <i style="color:blue;">━</i> Vliegtuigroute
+        </div>
+        {% endmacro %}
+        """
+        from branca.element import Template, MacroElement
+        legenda = MacroElement()
+        legenda._template = Template(legend_html)
+        m.get_root().add_child(legenda)
 
     st_folium(m, width=750, height=500)
 
