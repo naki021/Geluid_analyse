@@ -296,7 +296,7 @@ elif keuze == "Geluidsvergelijking per vliegtuigtype":
 }
 
     capaciteit_df = pd.DataFrame(capaciteit_data).T.reset_index()
-    capaciteit_df.columns = ["icao_type", "passagiers", "vracht_ton"]
+    capaciteit_df = capaciteit_df[["icao_type", "passagiers", "vracht_ton"]]
     capaciteit_df["grootteklasse"] = capaciteit_df["icao_type"].map(grootteklasse)
 
     gemiddeld_geluid = data_clean.groupby("icao_type")["SEL_dB"].mean().reset_index()
