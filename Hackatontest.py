@@ -554,8 +554,10 @@ elif keuze == "Windrichting vs geluid":
 elif keuze == "Geluid vs Gewicht per grootteklasse":
     st.header("Geluid vs Gewicht per grootteklasse")
 
+    import plotly.express as px
+
     # Data voorbereiden
-    df_clean = df.dropna(subset=["icao_type", "SEL_dB", "time"])
+    df_clean = df.dropna(subset=["icao_type", "SEL_dB", "time"]).copy()
     df_clean["datum"] = df_clean["time"].dt.date
 
     # Map elke icao_type naar de juiste grootteklasse
@@ -567,8 +569,13 @@ elif keuze == "Geluid vs Gewicht per grootteklasse":
     }
     df_clean["grootteklasse"] = df_clean["icao_type"].map(grootteklasse)
 
+    # Verwijder rijen zonder grootteklasse
+    df_clean = df_clean.dropna(subset=["grootteklasse"])
+
+    # Groepeer data per datum en grootteklasse
+    groepsdata_grootte = df_clean.groupby(["datum", "grootteklasse"])["SEL_dB"].mean().reset_index()
+
     # Plotly lijnplot: per grootteklasse over de tijd
-    import plotly.express as px
     fig = px.line(
         groepsdata_grootte,
         x="datum",
@@ -576,7 +583,7 @@ elif keuze == "Geluid vs Gewicht per grootteklasse":
         color="grootteklasse",
         markers=True,
         labels={
-            "SEL_dB": "Gemiddelde geluidsniveau (dB)",
+            "SEL_dB": "Gemiddeld geluidsniveau (dB)",
             "datum": "Datum",
             "grootteklasse": "Grootteklasse"
         },
