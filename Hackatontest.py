@@ -191,29 +191,29 @@ elif keuze == "Heatmap geluid (per uur)":
     m.get_root().add_child(legenda)
 
     st_folium(m, width=750, height=500)
-# === ✈️ Vluchtpad tekenen van 1 callsign in dat uur ===
-st.markdown("---")
-st.subheader("✈️ Vluchtlijn tekenen in geselecteerd uur")
+    # === ✈️ Vluchtpad tekenen van 1 callsign in dat uur ===
+    st.markdown("---")
+    st.subheader("✈️ Vluchtlijn tekenen in geselecteerd uur")
 
-callsign_input = st.text_input("Vul callsign in (van een vliegtuig dat geluid veroorzaakte in dit uur)", "KLM1234").strip().upper()
+    callsign_input = st.text_input("Vul callsign in (van een vliegtuig dat geluid veroorzaakte in dit uur)", "KLM1234").strip().upper()
 
-# Filter alleen met meetpunten van dat callsign en dat uur
-pad_df = filtered[filtered["callsign"] == callsign_input].sort_values("time")
+    # Filter alleen met meetpunten van dat callsign en dat uur
+    pad_df = filtered[filtered["callsign"] == callsign_input].sort_values("time")
 
-if len(pad_df) < 2:
-    st.info("Niet genoeg meetpunten voor deze callsign op dit uur om een lijn te tekenen.")
-else:
-    pad = list(zip(pad_df["lat"], pad_df["lon"]))
+    if len(pad_df) < 2:
+        st.info("Niet genoeg meetpunten voor deze callsign op dit uur om een lijn te tekenen.")
+    else:
+        pad = list(zip(pad_df["lat"], pad_df["lon"]))
 
-    folium.PolyLine(
-        locations=pad,
-        color="purple",
-        weight=4,
-        opacity=0.8,
-        tooltip=f"Pad van {callsign_input}"
-    ).add_to(m)
+        folium.PolyLine(
+            locations=pad,
+            color="purple",
+            weight=4,
+            opacity=0.8,
+            tooltip=f"Pad van {callsign_input}"
+        ).add_to(m)
 
-    st.success(f"Lijn getekend voor vlucht **{callsign_input}** binnen {geselecteerd_uur}:00 uur.")
+        st.success(f"Lijn getekend voor vlucht **{callsign_input}** binnen {geselecteerd_uur}:00 uur.")
 
 
 # === 7. PAGINA: GELUIDSVERGELIJKING PER VLIEGTUIGTYPE (capacititeiten) ===
