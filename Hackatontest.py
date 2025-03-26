@@ -164,26 +164,36 @@ elif keuze == "Heatmap geluid (per uur)":
             tooltip=folium.Tooltip(tooltip_text, sticky=True)
         ).add_to(m)
 
-    # === Vluchtdata toevoegen ===
+# === Vluchtdata toevoegen ===
+# Cache als globale variabele (eenmalig inlezen)
+if 'cached_flight_df' not in globals():
+    print("CSV inlezen en verwerken...")
     flight_df = pd.read_csv("flights_today_master1.zip", compression='zip')
     flight_df['ParsedTime'] = pd.to_datetime(flight_df['Time'], format='%a %I:%M:%S %p', errors='coerce')
     flight_df['hour'] = flight_df['ParsedTime'].dt.hour
-
     flight_df = flight_df.dropna(subset=['Latitude', 'Longitude', 'hour'])
-    grouped_flights = flight_df.groupby(['FlightNumber', 'hour'])
+    
+    # Cache het resultaat
+    cached_flight_df = flight_df
+else:
+    flight_df = cached_flight_df
 
-    for (vlucht, uur), groep in grouped_flights:
-        if uur != geselecteerd_uur:
-            continue
-        coords = groep[['Latitude', 'Longitude']].values.tolist()
-        if len(coords) >= 2:
-            folium.PolyLine(
-                coords,
-                color="blue",
-                weight=2,
-                opacity=0.6,
-                tooltip=f"Vlucht {vlucht}"
-            ).add_to(m)
+# Groeperen
+grouped_flights = flight_df.groupby(['FlightNumber', 'hour'])
+
+for (vlucht, uur), groep in grouped_flights:
+    if uur != geselecteerd_uur:
+        continue
+    coords = groep[['Latitude', 'Longitude']].values.tolist()
+    if len(coords) >= 2:
+        folium.PolyLine(
+            coords,
+            color="blue",
+            weight=2,
+            opacity=0.6,
+            tooltip=f"Vlucht {vlucht}"
+        ).add_to(m)
+
 
     # 📘 Legenda: linksonder + nettere titel
     legend_html = """
