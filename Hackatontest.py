@@ -567,9 +567,6 @@ elif keuze == "Geluid vs Gewicht per grootteklasse":
     }
     df_clean["grootteklasse"] = df_clean["icao_type"].map(grootteklasse)
 
-    # Groeperen per datum en grootteklasse en gemiddelde geluidsniveau berekenen
-    groepsdata_grootte = df_filtered.groupby(["datum", "grootteklasse"])["SEL_dB"].mean().reset_index()
-
     # Plotly lijnplot: per grootteklasse over de tijd
     import plotly.express as px
     fig = px.line(
