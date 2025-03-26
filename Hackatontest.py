@@ -14,6 +14,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns  # (optioneel, als je geen seaborn wilt gebruiken, kun je het eruit laten)
 from folium.plugins import HeatMapWithTime
 from branca.element import Template, MacroElement
+import sys
+sys.path.append("opensky_api")  # zodat hij de map herkent
+from opensky_api import OpenSkyApi
 
 # === 1. TITEL VAN JE APP ===
 st.title("Vluchtdata uit Sensornet API")
@@ -191,6 +194,40 @@ elif keuze == "Heatmap geluid (per uur)":
     m.get_root().add_child(legenda)
 
     st_folium(m, width=750, height=500)
+@st.cache_data(show_spinner="📡 Vluchtpad ophalen...")
+def haal_vluchtlijn(callsign):
+    api = OpenSkyApi()
+    start_ts = int(pd.Timestamp("2025-03-01").timestamp())
+    end_ts = int(pd.Timestamp("2025-03-08").timestamp())
+    try:
+        vluchten = api.get_flights_by_callsign(callsign, start_ts, end_ts)
+        if vluchten:
+            vlucht = vluchten[0]
+            track = api.get_track_by_icao24(vlucht.icao24, vlucht.firstSeen, vlucht.lastSeen)
+            if track and hasattr(track, 'path') and track.path:
+                coördinaten = [(p.latitude, p.longitude) for p in track.path if p.latitude and p.longitude]
+                return coördinaten
+    except Exception as e:
+        st.warning(f"❌ Fout bij ophalen vluchtpad: {e}")
+    return []
+
+# 🛫 Voer een callsign in
+st.subheader("✈️ Vluchtpad tekenen")
+callsign_input = st.text_input("Callsigne van een vliegtuig tussen 1–8 maart 2025", "KLM1234")
+
+if callsign_input:
+    pad = haal_vluchtlijn(callsign_input.strip().upper())
+    if pad:
+        folium.PolyLine(
+            locations=pad,
+            color="blue",
+            weight=3,
+            opacity=0.7,
+            tooltip=f"Vluchtpad {callsign_input.upper()}"
+        ).add_to(m)
+        st.success(f"🛫 Vluchtpad van **{callsign_input.upper()}** toegevoegd.")
+    else:
+        st.info("Geen vluchtpad gevonden. Probeer een andere callsign.")
 
 
 # === 7. PAGINA: GELUIDSVERGELIJKING PER VLIEGTUIGTYPE (capacititeiten) ===
