@@ -15,6 +15,33 @@ import seaborn as sns  # (optioneel, als je geen seaborn wilt gebruiken, kun je 
 from folium.plugins import HeatMapWithTime
 from branca.element import Template, MacroElement
 
+##
+@st.cache_data(show_spinner="📡 Vluchtgegevens ophalen via FlightAware")
+def haal_vluchtpad_via_aeroapi(callsign, api_key):
+    import requests
+
+    base_url = "https://aeroapi.flightaware.com/aeroapi/"
+    headers = {"x-apikey": api_key}
+
+    try:
+        response = requests.get(base_url + f"flights/{callsign}", headers=headers)
+        if response.status_code == 200:
+            vluchtinfo = response.json().get("flights", [])
+            if vluchtinfo:
+                vlucht = vluchtinfo[0]  # neem eerste vlucht als voorbeeld
+                origin = vlucht.get("origin", {})
+                destination = vlucht.get("destination", {})
+                pad = [
+                    (origin.get("latitude"), origin.get("longitude")),
+                    (destination.get("latitude"), destination.get("longitude"))
+                ]
+                if None not in pad[0] and None not in pad[1]:
+                    return pad
+    except Exception as e:
+        st.warning(f"Fout bij ophalen vluchtdata: {e}")
+
+    return []
+    
 # === 1. TITEL VAN JE APP ===
 st.title("Vluchtdata uit Sensornet API")
 
@@ -189,31 +216,28 @@ elif keuze == "Heatmap geluid (per uur)":
     legenda = MacroElement()
     legenda._template = Template(legend_html)
     m.get_root().add_child(legenda)
+    st.subheader("🛫 Vluchtpad tekenen via FlightAware (op basis van Sensornet callsign)")
+
+    api_key = st.text_input("🔐 Vul je FlightAware API key in:", type="password")
+    beschikbare_callsigns = filtered["callsign"].dropna().unique()
+
+    callsign_keuze = st.selectbox("✈️ Kies een callsign uit deze meetpunten:", opties := sorted(beschikbare_callsigns))
+
+    if api_key and callsign_keuze:
+        lijn = haal_vluchtpad_via_aeroapi(callsign_keuze, api_key)
+        if lijn:
+            folium.PolyLine(
+                locations=lijn,
+                color="darkred",
+                weight=4,
+                opacity=0.85,
+                tooltip=f"Vlucht {callsign_keuze}"
+            ).add_to(m)
+            st.success(f"🧭 Lijn getekend voor vlucht {callsign_keuze}")
+        else:
+            st.info("Geen vluchtpad gevonden via API of ontbrekende coördinaten.")
 
     st_folium(m, width=750, height=500)
-    # === ✈️ Vluchtpad tekenen van 1 callsign in dat uur ===
-    st.markdown("---")
-    st.subheader("✈️ Vluchtlijn tekenen in geselecteerd uur")
-
-    callsign_input = st.text_input("Vul callsign in (van een vliegtuig dat geluid veroorzaakte in dit uur)", "KLM1234").strip().upper()
-
-    # Filter alleen met meetpunten van dat callsign en dat uur
-    pad_df = filtered[filtered["callsign"] == callsign_input].sort_values("time")
-
-    if len(pad_df) < 2:
-        st.info("Niet genoeg meetpunten voor deze callsign op dit uur om een lijn te tekenen.")
-    else:
-        pad = list(zip(pad_df["lat"], pad_df["lon"]))
-
-        folium.PolyLine(
-            locations=pad,
-            color="purple",
-            weight=4,
-            opacity=0.8,
-            tooltip=f"Pad van {callsign_input}"
-        ).add_to(m)
-
-        st.success(f"Lijn getekend voor vlucht **{callsign_input}** binnen {geselecteerd_uur}:00 uur.")
 
 
 # === 7. PAGINA: GELUIDSVERGELIJKING PER VLIEGTUIGTYPE (capacititeiten) ===
