@@ -66,10 +66,10 @@ end_date = st.sidebar.date_input("Einddatum", data['time'].max().date())
 df = data[(data['time'].dt.date >= start_date) & (data['time'].dt.date <= end_date)]
 
 # Locatiefilter (optioneel)
-if 'location_short' in df.columns:
-    locaties = df['location_short'].dropna().unique().tolist()
+if 'location_long' in df.columns:
+    locaties = df['location_long'].dropna().unique().tolist()
     geselecteerde_locaties = st.sidebar.multiselect("Locatie(s) selecteren", locaties, default=locaties)
-    df = df[df['location_short'].isin(geselecteerde_locaties)]
+    df = df[df['location_long'].isin(geselecteerde_locaties)]
 
 # Voor eventuele lat/lon-parsing (nodig voor de heatmap):
 def parse_location(loc):
