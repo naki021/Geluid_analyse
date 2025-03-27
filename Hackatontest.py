@@ -128,7 +128,8 @@ keuze = st.sidebar.selectbox(
         "Hoogte vs geluid (regressie)",
         "Gewicht vs geluid per vliegtuigtype",
         "Windrichting vs geluid",
-        "Geluid vs Gewicht per grootteklasse"
+        "Geluid vs Gewicht per grootteklasse",
+        "Conclusie"
             ]
 )
 
@@ -296,7 +297,7 @@ elif keuze == "Heatmap geluid (per uur)":
 
 # === 7. PAGINA: GELUIDSVERGELIJKING PER VLIEGTUIGTYPE ===
 elif keuze == "Geluidsvergelijking per vliegtuigtype":
-    st.header("🔊 Geluidsvergelijking per vliegtuigtype (per eenheid)")
+    st.header("Geluidsvergelijking per vliegtuigtype (per eenheid)")
 
     # Voeg passagiers- en vrachtdata toe
     data["passagiers"] = data["icao_type"].map(lambda x: gewicht_info.get(x, {}).get("passagiers", np.nan))
@@ -318,12 +319,12 @@ elif keuze == "Geluidsvergelijking per vliegtuigtype":
 
     if optie == "Per passagier":
         kolom = "geluid_per_passagier"
-        title = "🔊 Gemiddeld geluid per passagier (dB)"
+        title = "Gemiddeld geluid per passagier (dB)"
         kleur = "OrRd"
         data_filter = agg_df.query("passagiers > 0").dropna(subset=[kolom])
     else:
         kolom = "geluid_per_ton_vracht"
-        title = "🔊 Gemiddeld geluid per ton vracht (dB)"
+        title = "Gemiddeld geluid per ton vracht (dB)"
         kleur = "Blues"
         data_filter = agg_df.dropna(subset=[kolom])
 
@@ -361,7 +362,7 @@ elif keuze == "Geluidsvergelijking per vliegtuigtype":
 
 # === 8. PAGINA: HOOGTE VS GELUID (REGRESSIE) ===
 elif keuze == "Hoogte vs geluid (regressie)":
-    st.header("✈️ Hoe hoger het vliegtuig, hoe lager het geluid")
+    st.header("Hoe hoger het vliegtuig, hoe lager het geluid")
 
     df_hoogte = df.dropna(subset=["SEL_dB", "altitude"])
     if len(df_hoogte) < 2:
@@ -480,7 +481,7 @@ elif keuze == "Gewicht vs geluid per vliegtuigtype":
 
     # Layout
     fig.update_layout(
-        title="✈️ Gewicht vs gemiddeld geluid per vliegtuigtype",
+        title="Gewicht vs gemiddeld geluid per vliegtuigtype",
         xaxis_title="Gemiddeld gewicht vliegtuigtype (kg)",
         yaxis_title="Gemiddeld SEL (dB)",
         height=600,
@@ -590,10 +591,11 @@ elif keuze == "Geluid vs Gewicht per grootteklasse":
         title="Gemiddeld geluid per grootteklasse per dag"
     )
 
-    # Y-as label verduidelijken
+    # Y-as label en schaal verduidelijken
     fig.update_layout(
         yaxis_title="Gemiddeld geluidsniveau (SEL_dB)\n(meer = luider)"
     )
+    fig.update_yaxes(dtick=5)  # Toon y-as in stappen van 5 dB
 
     # Visuele zones toevoegen
     min_date = groepsdata_grootte["datum"].min()
@@ -611,3 +613,17 @@ elif keuze == "Geluid vs Gewicht per grootteklasse":
                   annotation_text="Normgrens 75 dB", annotation_position="top left")
 
     st.plotly_chart(fig, use_container_width=True)
+
+### conclusie
+elif keuze == "Conclusie":
+    st.header("Conclusie")
+
+    st.markdown("""
+
+    - **Hoogte**, **tijdstip** en **vliegtuigtype** hebben een duidelijke invloed op het gemeten geluidsniveau.
+    - **Windrichting** beïnvloedt waar en wanneer de meeste geluidsoverlast optreedt; **zuidwestenwind** levert vaak hogere niveaus op.
+    - **Zwaardere vliegtuigen** produceren gemiddeld meer geluid, maar zijn soms **efficiënter per passagier** of **per ton vracht** dan kleinere jets.
+    - Er zijn duidelijke verschillen tussen **grootteklassen op specifieke dagen**, wat wijst op patronen in **baangebruik**.
+    - **Interactieve visualisaties** geven een completer en eerlijker beeld van de geluidsoverlast rond Schiphol.
+    """)
+
