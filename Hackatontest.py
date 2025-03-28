@@ -620,7 +620,6 @@ elif keuze == "Conclusie":
     st.markdown("""
 
     - **Hoogte**, **tijdstip** en **vliegtuigtype** hebben een duidelijke invloed op het gemeten geluidsniveau.
-    - **Windrichting** beïnvloedt waar en wanneer de meeste geluidsoverlast optreedt; **zuidwestenwind** levert vaak hogere niveaus op.
     - **Zwaardere vliegtuigen** produceren gemiddeld meer geluid, maar zijn soms **efficiënter per passagier** of **per ton vracht** dan kleinere jets.
     """)
 
