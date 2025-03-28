@@ -505,7 +505,6 @@ elif keuze == "Windrichting vs geluid":
 
     - Hoe dichter bij de rand, hoe harder het geluid
     - Richting = waar de wind vandaan komt (0° = noord, 180° = zuid)
-    - Wind uit bepaalde richtingen (bijv. ZW of NO) kan leiden tot **meer geluidsoverlast**
     """)
 
     # Afronden op 10 graden
@@ -623,7 +622,5 @@ elif keuze == "Conclusie":
     - **Hoogte**, **tijdstip** en **vliegtuigtype** hebben een duidelijke invloed op het gemeten geluidsniveau.
     - **Windrichting** beïnvloedt waar en wanneer de meeste geluidsoverlast optreedt; **zuidwestenwind** levert vaak hogere niveaus op.
     - **Zwaardere vliegtuigen** produceren gemiddeld meer geluid, maar zijn soms **efficiënter per passagier** of **per ton vracht** dan kleinere jets.
-    - Er zijn duidelijke verschillen tussen **grootteklassen op specifieke dagen**, wat wijst op patronen in **baangebruik**.
-    - **Interactieve visualisaties** geven een completer en eerlijker beeld van de geluidsoverlast rond Schiphol.
     """)
 
